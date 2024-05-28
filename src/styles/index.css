@@ -226,8 +226,8 @@ div:nth-of-type(2)::-webkit-resizer {
   grid-template-rows: 1fr 8fr 3fr;
   grid-template-areas:
     "navBar navBar navBar navBar"
-    "editor editor editor code"
-    "editor editor editor output";
+    "code editor editor editor"
+    "output editor editor editor";
   grid-gap: 0.5rem;
   height: calc(100vh - 0.5rem);
 }
@@ -238,9 +238,9 @@ div:nth-of-type(2)::-webkit-resizer {
   font-style: normal;
   grid-template-rows: 1fr 8fr 3fr;
   grid-template-areas:
-    "navBar navBar navBar navBar"
-    "code code code code"
-    "output output output output";
+  "navBar navBar navBar navBar"
+  "code editor editor editor"
+  "output editor editor editor";
   grid-gap: 0.5rem;
   height: calc(100vh - 0.5rem);
 }

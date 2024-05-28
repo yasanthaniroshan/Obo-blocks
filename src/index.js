@@ -12,16 +12,8 @@ import {
   saveModifideCode,
 } from "./editor/editor";
 
-import * as Blockly from "blockly/core";
-import { toolbox } from "./blocky/toolbox";
-import { forBlock } from "./blocky/generator";
-import { pythonGenerator } from "blockly/python";
-import { blocks } from "./blocky/blocks";
-import { OboCategory } from "./blocky/categories";
-import { theme } from "./blocky/themes";
-import { save, load } from "./blocky/serialization";
-
-import { worker, terminal, stopWorker } from "./pyodide/loader";
+import Sk from "./skulpt/skulpt";
+import { outputfun, inputfun ,builtinRead } from "./skulpt/functions";
 
 let editable = false;
 let ws;
@@ -43,54 +35,28 @@ const runButtonText = document.getElementById("run-text");
 const editbuttonText = document.getElementById("edit-text");
 const codeDiv = document.getElementById("code");
 const outputDiv = document.getElementById("output");
+let terminal = document.getElementById('terminal-output');
+
 
 // ------------------- Event Listners -----------------------------
 // obo_blocks_logo.src = oboBlocksLogo
 // academy_logo.src = academyLogo
 // ------------------- Blockly Configuration -------------------------
 
-Blockly.common.defineBlocks(blocks);
-Object.assign(pythonGenerator.forBlock, forBlock);
-
-Blockly.registry.register(
-  Blockly.registry.Type.TOOLBOX_ITEM,
-  Blockly.ToolboxCategory.registrationName,
-  OboCategory,
-  true
-);
-
-const options = {
-  toolbox: toolbox,
-  theme: theme,
-  media: "media",
-  grid: {
-    spacing: 20,
-    length: 1,
-    colour: "#888",
-    snap: false,
-  },
-  zoom: {
-    controls: true,
-    startScale: 1,
-    maxScale: 1.5,
-    minScale: 0.7,
-    scaleSpeed: 1.2,
-  },
-  renderer: "zelos",
-};
-
 // ----------------------- Function defintions --------------------------------
 async function runcode() {
-  try {
-    runcodeButton.setAttribute("disabled", true);
-    runButtonText.innerHTML = "Running";
-    let code = editor.state.doc.toString();
-    worker.postMessage({ code: code, command: "run" });
-    runcodeButton.removeAttribute("disabled");
-    runButtonText.innerHTML = "Run";
-  } catch (err) {
-    console.error("Error running code:", err);
-  }
+  let code = editor.state.doc.toString();
+  var myPromise = Sk.misceval.asyncToPromise(function () {
+    return Sk.importMainWithBody("<stdin>", false, code, true);
+  });
+  myPromise.then(
+    function (mod) {
+      console.log("success");
+    },
+    function (err) {
+      console.log(err.toString());
+    }
+  );
 }
 
 async function copyTextToClipboard(textToCopy) {
@@ -115,33 +81,19 @@ function showNotification(message) {
   }, 1500);
 }
 
-function initBlokly(workspace) {
-  workspace = Blockly.inject(blocklyDiv, options);
-  workspace.addChangeListener((e) => {
-    if (
-      e.isUiEvent ||
-      e.type == Blockly.Events.FINISHED_LOADING ||
-      workspace.isDragging()
-    ) {
-      return;
-    }
-    save(workspace);
-    const code = pythonGenerator.workspaceToCode(workspace);
-    insertPythonSnippet(code);
-  });
-  return workspace;
-}
-
-
-let totalSizeWindowSizw = parseInt(codeDiv.getBoundingClientRect().height.toFixed(0)) + parseInt(outputDiv.getBoundingClientRect().height.toFixed(0));
+let totalSizeWindowSizw =
+  parseInt(codeDiv.getBoundingClientRect().height.toFixed(0)) +
+  parseInt(outputDiv.getBoundingClientRect().height.toFixed(0));
 let oldcodeSize = codeDiv.getBoundingClientRect().height.toFixed(0);
 let newoutputSize = outputDiv.getBoundingClientRect().height.toFixed(0);
 
-
-
 function resizeRightColumn() {
   let newcodeSize = codeDiv.getBoundingClientRect().height.toFixed(0);
-  if ((newcodeSize < 500 && newcodeSize > 300 )&& newcodeSize < totalSizeWindowSizw) {
+  if (
+    newcodeSize < 500 &&
+    newcodeSize > 300 &&
+    newcodeSize < totalSizeWindowSizw
+  ) {
     let outputSize = totalSizeWindowSizw - newcodeSize; // Replace codeSize with newcodeSize
     console.log("Output Size: ", totalSizeWindowSizw);
     outputDiv.style.height = outputSize + "px";
@@ -159,7 +111,14 @@ if ("ResizeObserver" in window) {
 }
 // ------------------------ Initializations -----------------------------------------------------------
 
-ws = initBlokly(ws);
+function readinput()
+{
+  code = editor.state.doc.toString();
+  return code;
+}
+
+Sk.configure({ output: outputfun, read: builtinRead });
+(Sk.TurtleGraphics || (Sk.TurtleGraphics = {})).target = "editor";
 
 // ------------------------ Event Listners -----------------------------------------------------------
 
@@ -170,21 +129,11 @@ editbutton.addEventListener("click", function () {
   if (editable) {
     showNotification("Editing enabled");
     editbuttonText.innerHTML = "Editing";
-    save(ws);
     loadModifiedCode();
-    ws.dispose();
-    blocklyDiv.style.display = "none";
-    imageEDit.style.display = "block";
-
   } else {
     editbuttonText.innerHTML = "Edit";
     blocklyDiv.style.display = "block";
-    imageEDit.style.display = "none";
     saveModifideCode();
-    ws = initBlokly(ws);
-    load(ws);
-    const code = pythonGenerator.workspaceToCode(ws);
-    insertPythonSnippet(code);
     showNotification("Editing disabled");
   }
 });
@@ -223,6 +172,7 @@ exportButton.addEventListener("click", () => {
 
 document.addEventListener("DOMContentLoaded", () => {
   makeUneditable(editable);
+  showNotification("Welcome to Python Editor");
+  terminal.innerHTML = "Python 3.10 \n>>> ";
   notification.style.transition = "opacity 0.5s ease-in-out";
-  ws.resize();
 });
